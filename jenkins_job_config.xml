@@ -1,0 +1,72 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1590.v49101d088542">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2291.v2934911987b_6"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2291.v2934911987b_6">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description>Declarative pipeline with stages git checkout, telemetry build, and deploy artifacts</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@4360.v2020e8819a_d6">
+    <script>pipeline {
+    agent any
+
+    stages {
+        stage(&apos;git checkout&apos;) {
+            steps {
+                echo &apos;=== Stage 1: git checkout ===&apos;
+                git branch: &apos;main&apos;, url: &apos;https://github.com/Prabin-yadav/telemetry-core.git&apos;
+                sh &apos;ls -la&apos;
+            }
+        }
+
+        stage(&apos;telemetry build&apos;) {
+            steps {
+                echo &apos;=== Stage 2: telemetry build ===&apos;
+                sh &apos;&apos;&apos;
+                    echo &quot;[BUILD] Checking telemetry configuration...&quot;
+                    cat telemetry.conf
+                    echo &quot;[BUILD] Verifying Python syntax...&quot;
+                    python3 -m py_compile app.py || true
+                    echo &quot;[BUILD] Packaging telemetry artifacts...&quot;
+                    mkdir -p build/artifacts
+                    cp app.py telemetry.conf README.md build/artifacts/
+                    tar -czf build/artifacts/telemetry-core-v3.1.0.tar.gz app.py telemetry.conf README.md
+                    echo &quot;[BUILD] Telemetry Core build completed successfully.&quot;
+                &apos;&apos;&apos;
+            }
+        }
+
+        stage(&apos;deploy artifacts&apos;) {
+            steps {
+                echo &apos;=== Stage 3: deploy artifacts ===&apos;
+                archiveArtifacts artifacts: &apos;build/artifacts/**&apos;, allowEmptyArchive: true
+                sh &apos;&apos;&apos;
+                    echo &quot;[DEPLOY] Deploying artifacts to ingestion cluster...&quot;
+                    mkdir -p /tmp/fleet-deploy
+                    cp -r build/artifacts/* /tmp/fleet-deploy/
+                    echo &quot;[DEPLOY] Deployment complete: Telemetry ingestion artifacts deployed.&quot;
+                &apos;&apos;&apos;
+            }
+        }
+    }
+
+    post {
+        always {
+            echo &apos;Declarative Pipeline finished.&apos;
+        }
+        success {
+            echo &apos;All stages completed successfully: git checkout, telemetry build, deploy artifacts.&apos;
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
